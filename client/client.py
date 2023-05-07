@@ -7,7 +7,7 @@ import threading
 from src.Field import *
 from src.GUI import *
 
-HOST = '127.0.0.1'
+HOST = ""
 PORT = 1234
 
 def send_request(request_data):
@@ -39,6 +39,9 @@ def main():
 
 class Client:
     def __init__(self):
+        print("Enter host ip")
+        global HOST
+        HOST = input()
         print("Enter your name!")
         self.name = input()
         request = {'type': 'user_login', 'user': {'name' : self.name}}
