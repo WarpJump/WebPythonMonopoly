@@ -8,24 +8,8 @@ import random
 
 from src.GameEngine import *
 
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = 1234
-
-
-def handle_json_request(payload):
-    # Process JSON request payload here...
-    response_payload = {"message": "Processed JSON request successfully!"}
-    return response_payload
-
-
-def handle_ping_request(payload):
-    response_payload = {"message": "Pong!"}
-    return response_payload
-
-
-def handle_hello_request(payload):
-    response_payload = {"message": f'Hello, {payload["data"]["name"]}!'}
-    return response_payload
 
 
 class Server:
