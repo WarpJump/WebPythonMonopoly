@@ -41,7 +41,7 @@ class Client:
             time.sleep(1)
         self.GUI = GUI()
 
-        game = send_request({'type': 'update', 'user' : {"name" : self.name, 'hash': self.hash}})
+        game = self.send_request({'type': 'update', 'user' : {"name" : self.name, 'hash': self.hash}})
 
         self.field = Field()
 
