@@ -42,6 +42,7 @@ class GameEngine:
 
 
 
+
     def move_player(self, player):
         steps = random.randint(1, 6) + random.randint(1, 6)
         self.log_stack.append(f"Player {player.name} goes {steps} steps forward!")
@@ -54,13 +55,16 @@ class GameEngine:
             player.AddMoney(200)
         player.position %= 40
 
-    async def play(self):
-        for id in range(self.players):
-            while(not self.button_pressed[id]):
-                continue
+    def play(self):
+        #ждём пока все нажмут на кнопки
+        for id in range(len(self.users)):
+            if not self.button_pressed[id]:
+                return 'waiting user'
+
+        for id in range(len(self.users)):
             self.button_pressed[id] = False
 
-            player = self.players[id]
+            player = self.users[id]
             messages = []
 
             self.move_player(player)
@@ -74,7 +78,7 @@ class GameEngine:
                     f"Player {player.name} has lost all money and went bankrupt!"
                 )
                 self.num_of_purchased_property.size -= len(player.assets)
-                if player == self.user:
+                if player == self.users[0]:
                     messages.append(
                         f"You went bankrupt, no delays anymore, finding winner as soon as possible"
                     )
@@ -84,7 +88,7 @@ class GameEngine:
                     self.user_alive = False
                 for site in player.assets:
                     site.Destruct()
-                self.players.pop(id)
+                self.users.pop(id)
 
             # ищем кандидата куда можно поставить домик
             boundary_house_place_price = (
@@ -117,17 +121,9 @@ class GameEngine:
                     f"Player {player.name} has lost all money and went bankrupt!"
                 )
                 self.num_of_purchased_property.size -= len(player.assets)
-                if player == self.user:
-                    messages.append(
-                        f"You went bankrupt, no delays anymore, finding winner as soon as possible"
-                    )
-                    print(
-                        "You went bankrupt, no delays anymore, finding winner as soon as possible"
-                    )
-                    self.user_alive = False
                 for site in player.assets:
                     site.Destruct()
-                self.players.remove(player)
+                self.npcs.remove(player)
 
             # ищем кандидата куда можно поставить домик
             boundary_house_place_price = (
@@ -145,27 +141,22 @@ class GameEngine:
 
                 candidate_for_house.PlaceHouse()
 
-            #self.GUI.draw(self.players, self.field, messages, player)
-
-        if len(self.players) == 1:
+        if len(self.users + self.npcs) == 1:
             messages = []
 
             messages.append(
-                f"Player {self.players[0].name} remains the last player and wins the game!"
+                f"Player {(self.users + self.npcs)[0].name} remains the last player and wins the game!"
             )
 
             messages.append("Close the window to exit")
-            print("Press and enter any key to exit")
-            a = input()
-            return a
+            print("Game finished")
+            return 0
 
 
-
-        time.sleep(0.1)
 
     def update(self, hash):
         if hash in self.hashes:
-            users = [user.form_json() for user in self.users]
+            users = [user.form_json() for user in (self.users + self.npcs)]
             return users
         else:
             return []

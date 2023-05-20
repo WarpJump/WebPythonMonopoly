@@ -1,14 +1,13 @@
 import json
 import socket
 import time
-import threading
 
 
 from src.Field import *
 from src.GUI import *
 
 HOST = ''
-PORT = 1234
+PORT = 12345
 
 
 
@@ -21,7 +20,11 @@ class Client:
         print("Enter your name!")
         self.name = input()
         request = {'type': 'user_login', 'user': {'name' : self.name}}
-        response = self.send_request(request)
+        try:
+            response = self.send_request(request)
+        except:
+            print("Couldn\'t connect to server, terminating")
+            return 1
         self.hash = response["hash"]
         begin = time.time()
         print("Succesfully connected to server, waiting matchamking system to start a game! 0/20 seconds")
@@ -42,45 +45,57 @@ class Client:
         self.GUI = GUI()
 
         game = self.send_request({'type': 'update', 'user' : {"name" : self.name, 'hash': self.hash}})
-
+        print(f'received response {game}')
         self.field = Field()
 
         self.GUI.draw(game["players"], self.field, [])
 
-        Updating = threading.Thread(target=self.update)
-        Button = threading.Thread(target=self.button)
+        self.update()
 
-        Updating.start()
-        Button.start()
-
-        Updating.join()
-        Button.join()
-
-    def send_request(request_data):
-        socket =  socket.socket(socket.AF_INET, socket.SOCK_STREAM):
-        socket.connect((HOST, PORT))
-        request_json = json.dumps(request_data)
-
-        socket.sendall(request_json.encode())
-
-        response_json = socket.recv(1024).decode()
-
-        return json.loads(response_json)
-
-    def button(self):
-        while True:
-            if(self.GUI.button_pressed):
-                self.send_request({'type': 'press_button', 'user' : {"name" : self.name, 'hash': self.hash}})
-                self.GUI.button_pressed = False
-            time.sleep(0.1)
 
     def update(self):
+        updated_time = time.time()
         while True:
-            response = self.send_request({'type': 'update', 'user' : {"name" : self.name, 'hash': self.hash}})
-
-            self.GUI.draw(response["players"], self.field, [])
+            if(self.GUI.button_pressed):
+                response = self.send_button()
+                print(f'button pressed, {response}')
+                self.GUI.button_pressed = False
+            else:
+                #если давно не синхронизировались с сервером, обновляемся
+                if(time.time() - updated_time > 2):
+                    response = self.send_update()
+                    match response['status']:
+                        case 'error':
+                            print('sorry, internal server error, aborting')
+                            return 1
+                        case 'finished':
+                            print('Game finished!')
+                            return 0
+                        case 'ready':
+                            updated_time = time.time()
+                            self.GUI.draw(response["players"], self.field, response["messages"])
+                        case _:
+                            print('unknown error, terminating')
+                            return 1
 
             time.sleep(0.1)
+
+    def send_button(self):
+        return self.send_request({'type': 'press_button', 'user' : {"name" : self.name, 'hash': self.hash}})
+
+    def send_update(self):
+        return self.send_request({'type': 'update', 'user' : {"name" : self.name, 'hash': self.hash}})
+
+    def send_request(self, request_data):
+        self.socket =  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((HOST, PORT))
+        request_json = json.dumps(request_data)
+
+        self.socket.sendall(request_json.encode())
+
+        response_json = self.socket.recv(1024).decode()
+
+        return json.loads(response_json)
 
 
 Client()

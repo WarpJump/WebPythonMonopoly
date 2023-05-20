@@ -8,8 +8,8 @@ import random
 
 from src.GameEngine import *
 
-HOST = "0.0.0.0"
-PORT = 1234
+HOST = '0.0.0.0'
+PORT = 12345
 
 
 class Server:
@@ -26,14 +26,23 @@ class Server:
 
         self.launched_games = []
 
+
+        #цикл, принимающий запросы
         Receiver = threading.Thread(target=self.receive)
+
+        #цикл, распределяющий игроков по партиям
         Matchmaking = threading.Thread(target=self.matchmaking)
+
+        #цикл, просчитывающий всю логику всех партий
+        GameComputing = threading.Thread(target=self.computing)
 
         Receiver.start()
         Matchmaking.start()
+        GameComputing.start()
 
         Receiver.join()
         Matchmaking.join()
+        GameComputing.join()
 
     def matchmaking(self):
         while True:
@@ -63,23 +72,39 @@ class Server:
                         hashes.append(self.hashes[i + self.iterator])
                         self.hash_user_dict.append({self.hashes[i + self.iterator], len(self.launched_games)})
                     print(f"{num} users found! Creating match")
+                    print(f"users hashes {hashes}")
                     self.iterator += num
                     self.launched_games.append(GameEngine(users, hashes))
 
-                #если игрок один и ждёт немного, пусть ещё подождёт, вдруг люди зайдут
-            time.sleep(0.1)
+                    #если игрок один и ждёт немного, пусть ещё подождёт, вдруг люди зайдут
+                time.sleep(0.01)
+
+    def computing(self):
+        while True:
+            for game in self.launched_games:
+                game.play()
 
     def receive(self):
+        self.connection  = None
         while True:
-            self.connection, self.address = self.gateway.accept()
-            request_payload = json.loads(self.connection.recv(1024).decode())
+            try:
+                self.connection, self.address = self.gateway.accept()
+                request_payload = json.loads(self.connection.recv(1024).decode())
 
-            response_payload = self.handle_request(request_payload)
-            print(response_payload)
+                response_payload = self.handle_request(request_payload)
+                print(f'succesfully finished {request_payload["type"]} request')
 
-            sent_payload = json.dumps(response_payload)
+                sent_payload = json.dumps(response_payload)
 
-            self.connection.sendall(sent_payload.encode())
+                self.connection.sendall(sent_payload.encode())
+
+            except:
+                if self.connection:
+                    sent_payload = json.dumps({"status" : "error"})
+                    self.connection.sendall(sent_payload.encode())
+                else:
+                    print("Error")
+
 
     def handle_request(self, payload):
         request_type = payload["type"]
@@ -115,15 +140,29 @@ class Server:
             return {"status" : "not_ready"}
         else:
             id = self.hashes.index(payload["user"]["hash"])
-            print(id)
-            return {"status" : "ready", "players" : self.launched_games[id].update(payload["user"]["hash"])}
+            game = self.launched_games[id]
+            if len(game.users + game.npcs) == 1:
+                self.launched_games.pop(id)
+                return {"status" : "finished"}
+            else:
+                return {"status" : "ready", "players" : self.launched_games[id].update(payload["user"]["hash"]), "messages" : []}
 
 
 
     def handle_press_button(self, payload):
-            id = self.hashes.index(payload["user"]["hash"])
-            name = payload["user"]["name"]
-            self.launched_games[id].button_pressed[self.launched_games[id].users.index(name)] = True
+        #по хешу игрока ищем в массиве в какой партии он участвует
+        user_hash = payload["user"]["hash"]
+        party_id = self.hashes.index(user_hash)
 
+        #сохраняем ссылку на нужную партию
+        curr_users_game = self.launched_games[party_id]
+
+        #зная в какой партии участвует игрок, получаем его номер внутри игры
+        internal_user_number = curr_users_game.hashes.index(user_hash)
+
+        #записываем нажатие на кнопку
+        curr_users_game.button_pressed[internal_user_number] = True
+        print(f'button press received on game {curr_users_game} on user {internal_user_number}')
+        print(curr_users_game.button_pressed)
 
 Server()

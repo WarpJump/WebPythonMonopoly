@@ -15,7 +15,7 @@ class User:
         self.balance -= money
 
     def form_json(self):
-        assets = [site.name() for site in self.assets]
+        assets = [site.name for site in self.assets]
         return {"name" : self.name, "assets" : assets, "balance" : self.balance,
-                "position" : self.position}
-    
+            "position" : self.position}
+

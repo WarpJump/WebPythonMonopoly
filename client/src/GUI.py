@@ -76,6 +76,7 @@ class GUI:
 
 
     def draw(self, players, field, logs):
+        print(players)
         # отрисовка истории игровых сообщений
         for message in logs:
             self.listbox.insert("end", message)
