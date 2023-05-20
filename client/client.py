@@ -24,7 +24,7 @@ class Client:
             response = self.send_request(request)
         except:
             print("Couldn\'t connect to server, terminating")
-            return 1
+            return None
         self.hash = response["hash"]
         begin = time.time()
         print("Succesfully connected to server, waiting matchamking system to start a game! 0/20 seconds")
